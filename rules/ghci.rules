@@ -1,0 +1,22 @@
+with /::.*/ {
+        colorize /->/ blue
+        colorize /=>/ blue
+        colorize /::/ blue
+        colorize /~/  blue
+        colorize /\(/ blue
+        colorize /\)/ blue
+}
+
+colorize /^Failed, modules loaded:/        red
+colorize /^Ok, modules loaded:/            dark green
+colorize /^\*\*\*.*/                       red
+colorize /In the expression:/              dark green
+colorize /In an expression type signature/ dark green
+colorize /In an equation/                  dark green
+colorize /In the first argument/           dark green
+colorize /In the second argument/          dark green
+colorize /In the third argument/           dark green
+colorize /Perhaps you meant/               dark green
+colorize /Warning/                         yellow
+colorize /‘[^’]*’/                         dark blue
+colorize /^[^:]*:[0-9]*:[0-9]*:/           red

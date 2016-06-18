@@ -1,0 +1,5 @@
+colorize /warning:/                       yellow
+colorize /\[-W[^]]*\]/                    yellow
+colorize /error:/                         dark red
+colorize /^[^: ]*:([0-9]*:[0-9]*:)?/      dark blue
+colorize /‘[^’]*’/                        blue
