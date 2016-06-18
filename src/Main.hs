@@ -9,22 +9,47 @@
 --
 -- This is the main module the @colorize@ executable.
 
+{-# LANGUAGE LambdaCase #-}
+
 module Main where
 
-import Prelude hiding (getLine, until, head)
+import Prelude hiding (getLine, until, head, error)
 
 import Colorize.Rule
 import Colorize.Parsing (parseRuleFile)
 
 import Control.Monad (forever, when)
 
-import System.Environment (getArgs)
+import System.Directory (getHomeDirectory)
+import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
+import System.FilePath.Posix ((</>), (<.>))
 import System.IO (hFlush, hIsEOF, IOMode(..), openFile, hClose, hPutStrLn)
 import System.IO (stdin, stdout, stderr)
+import System.IO.Error (tryIOError)
 
 import Data.List.NonEmpty (nonEmpty, head)
 import qualified Data.Text.IO as T (hGetContents, getLine, putStrLn)
+
+loadRuleFile :: String -> IO (Maybe [Rule])
+loadRuleFile name = do
+    homeDir  <- getHomeDirectory
+    let filename = homeDir </> ".colorize" </> name <.> "rules"
+
+    tryIOError (openFile filename ReadMode) >>= \case
+
+      Left error   -> do
+        hPutStrLn stderr $ show error
+        return Nothing
+
+      Right handle -> do
+        text <- T.hGetContents handle
+        hClose handle
+        case parseRuleFile name text of
+          Left error  -> do
+            hPutStrLn stderr $ show error
+            return Nothing
+          Right rules -> return (Just rules)
 
 
 main :: IO ()
@@ -32,18 +57,15 @@ main = do
     maybeArgs <- nonEmpty <$> getArgs
     case maybeArgs of
       Nothing -> do
-        hPutStrLn stderr "Filename required"
+        progName <- getProgName
+        hPutStrLn stderr $ "Usage: " ++ progName ++ " <rule name>"
         exitFailure
 
       Just args -> do
-        let filename = head args
-        handle <- openFile filename ReadMode
-        text   <- T.hGetContents handle
-        hClose handle
-
-        case parseRuleFile filename text of
-          Left  err   -> putStrLn $ show err
-          Right rules -> forever $ do
+        let rulename = head args
+        loadRuleFile rulename >>= \case
+          Nothing    -> exitFailure
+          Just rules -> forever $ do
             isEOF <- hIsEOF stdin
             when isEOF exitSuccess
 
