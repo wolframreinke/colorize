@@ -15,9 +15,6 @@ module Main where
 
 import Prelude hiding (getLine, until, head, error)
 
-import Colorize.Rule
-import Colorize.Parsing (parseRuleFile)
-
 import Control.Monad (forever, when)
 
 import System.Directory (getHomeDirectory)
@@ -31,6 +28,14 @@ import System.IO.Error (tryIOError)
 import Data.List.NonEmpty (nonEmpty, head)
 import qualified Data.Text.IO as T (hGetContents, getLine, putStrLn)
 
+import Colorize.Rule
+import Colorize.Parsing (parseRuleFile)
+
+
+-- | Loads a list of 'Rule's from the given rule file name.  This file name is
+--   the name of the rules file without the @".rules"@ extension.  If the rule
+--   file doesn't exist, cannot be read, or contains syntax errors, an error
+--   message is written to @stderr@ and @Nothing@ is returned.
 loadRuleFile :: String -> IO (Maybe [Rule])
 loadRuleFile name = do
     homeDir  <- getHomeDirectory

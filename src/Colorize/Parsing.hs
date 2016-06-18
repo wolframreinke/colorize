@@ -1,4 +1,14 @@
-module Colorize.Parsing where
+-- |
+-- Module      : Main
+-- Copyright   : (c) 2016 Wolfram Reinke
+-- License     : BSD3
+--
+-- Maintainer  : Wolfram Reinke <wolframreinke@web.de>
+-- Stability   : experimental
+-- Portability : portable
+--
+-- This module defines the parsing rules for rule files.
+module Colorize.Parsing (parseRuleFile) where
 
 import Control.Monad (void)
 
@@ -15,6 +25,9 @@ import Colorize.Rule
 import Colorize.Color
 
 
+-- | Parses the contents of a rule file into a list of 'Rule's.
+--   The first argument to this function is the name of the rule file, which is
+--   used in error messages only.
 parseRuleFile :: String -> Text -> Either ParseError [Rule]
 parseRuleFile filename = runParser ruleFile filename
 
