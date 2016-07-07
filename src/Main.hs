@@ -15,7 +15,9 @@ module Main where
 
 import Prelude hiding (getLine, until, head, error)
 
-import Control.Monad (forever, when)
+import Control.Monad (forever, when, mzero)
+import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
+import Control.Monad.Trans.Class (lift)
 
 import System.Directory (getHomeDirectory)
 import System.Environment (getArgs, getProgName)
@@ -25,8 +27,14 @@ import System.IO (hFlush, hIsEOF, IOMode(..), openFile, hClose, hPutStrLn)
 import System.IO (stdin, stdout, stderr)
 import System.IO.Error (tryIOError)
 
+import Data.Char (isSpace)
 import Data.List.NonEmpty (nonEmpty, head)
+import Data.Text (Text, unpack)
 import qualified Data.Text.IO as T (hGetContents, getLine, putStrLn)
+
+import Text.Regex (replaceAllM)
+import Text.Regex.TDFA
+import Text.Regex.TDFA.Text
 
 import Colorize.Rule
 import Colorize.Parsing (parseRuleFile)
@@ -39,7 +47,8 @@ import Colorize.Parsing (parseRuleFile)
 loadRuleFile :: String -> IO (Maybe [Rule])
 loadRuleFile name = do
     homeDir  <- getHomeDirectory
-    let filename = homeDir </> ".colorize" </> name <.> "rules"
+    let ruleDir  = homeDir </> ".colorize"
+    let filename = ruleDir </> name <.> "rules"
 
     tryIOError (openFile filename ReadMode) >>= \case
 
@@ -50,11 +59,45 @@ loadRuleFile name = do
       Right handle -> do
         text <- T.hGetContents handle
         hClose handle
-        case parseRuleFile name text of
-          Left error  -> do
-            hPutStrLn stderr $ show error
+
+        maybePreprocessed <- runMaybeT $ preprocessRuleFile ruleDir text
+        case maybePreprocessed of
+          Nothing -> do
+            hPutStrLn stderr $ "Could not preprocess file: " ++ filename
             return Nothing
-          Right rules -> return (Just rules)
+          Just preprocessed -> do
+
+            case parseRuleFile name preprocessed of
+              Left error  -> do
+                hPutStrLn stderr $ show error
+                return Nothing
+              Right rules -> return (Just rules)
+
+
+-- | Preprocesses the given text by replacing all include directives with the
+--   contents of the files they point to.  For that purpose the rule directory
+--   is required as the first parameter.
+preprocessRuleFile :: String -> Text -> MaybeT IO Text
+preprocessRuleFile ruleDir = replaceAllM regex include
+  where
+    Right regex = compile defaultCompOpt defaultExecOpt "include [^ ]+"
+
+    include :: Text -> MaybeT IO Text
+    include directive = do
+        let rulename = extractRuleName directive
+        let filename = ruleDir </> rulename <.> "rules"
+
+        lift (tryIOError $ openFile filename ReadMode) >>= \case
+          Right handle -> do
+            content <- lift $ T.hGetContents handle
+            lift $ hClose handle
+            preprocessRuleFile ruleDir content
+          Left _       -> mzero
+
+    -- the directive has the form "include <rulename>", and this extracts
+    -- the rulename from the directive
+    extractRuleName = drop 1 . dropWhile (not . isSpace) . unpack
+
 
 
 main :: IO ()
